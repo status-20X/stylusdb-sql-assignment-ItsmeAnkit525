@@ -19,6 +19,11 @@ test('Parse SQL Query', () => {
     });
 });
 
+test('Parse SQL Query - Error Case', () => {
+    const invalidQuery = 'SELECT * FROM'; // Invalid query with missing table name
+    expect(() => parseQuery(invalidQuery)).toThrow();
+  });
+  
 test('Execute SQL Query', async () => {
     const query = 'SELECT id, name FROM sample';
     const result = await executeSELECTQuery(query);
