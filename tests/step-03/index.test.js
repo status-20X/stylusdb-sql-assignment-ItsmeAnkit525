@@ -17,3 +17,8 @@ test('Parse SQL Query', () => {
         table: 'sample'
     });
 });
+
+test('Parse SQL Query - Error Case', () => {
+    const invalidQuery = 'SELECT * FROM'; // Invalid query with missing table name
+    expect(() => parseQuery(invalidQuery)).toThrow();
+  });
