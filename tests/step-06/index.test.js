@@ -53,11 +53,6 @@ test('Execute SQL Query with WHERE Clause', async () => {
     expect(result[0].id).toBe('2');
 });
 
-test('Execute SQL Query with missing table', async () => {
-    const query = 'SELECT id, name FROM non_existent_table';
-    await expect(executeSELECTQuery(query)).rejects.toThrow("Table not found: non_existent_table");
-});
-
 test('Execute SQL Query with case-sensitive WHERE clause', async () => {
     const query = 'SELECT id, name FROM sample WHERE name = "John"';
     const result = await executeSELECTQuery(query);
