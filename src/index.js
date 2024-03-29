@@ -2,12 +2,12 @@
 
 const parseQuery = require('./queryParser');
 const readCSV = require('./csvReader');
-const fs = require('fs').promises; // Import the 'promises' API of the 'fs' module
+const fs = require('fs').promises;
 
 async function executeSELECTQuery(query) {
     try {
-        const { fields, table, whereClause } = parseQuery(query);
-
+        const { fields, table, whereClauses } = parseQuery(query);
+        
         // Check if the CSV file exists
         try {
             await fs.access(`${table}.csv`);
@@ -15,22 +15,17 @@ async function executeSELECTQuery(query) {
             throw new Error(`Table not found: ${table}`);
         }
 
-        // Check if the WHERE clause is incomplete
-        if (whereClause && whereClause.trim().toLowerCase() === 'where') {
-            throw new Error('Invalid WHERE clause: missing condition');
-        }
-
         const data = await readCSV(`${table}.csv`);
 
-        // Filtering based on WHERE clause
-        const filteredData = whereClause
-            ? data.filter(row => {
-                const [field, value] = whereClause.split('=').map(s => s.trim().toLowerCase());
-                return row[field.toLowerCase()] === value;
-            })
+        // Apply WHERE clause filtering
+        const filteredData = whereClauses.length > 0
+            ? data.filter(row => whereClauses.every(clause => {
+                // You can expand this to handle different operators
+                return row[clause.field] === clause.value;
+            }))
             : data;
 
-        // Selecting the specified fields
+        // Select the specified fields
         return filteredData.map(row => {
             const selectedRow = {};
             fields.forEach(field => {
@@ -46,3 +41,4 @@ async function executeSELECTQuery(query) {
 }
 
 module.exports = executeSELECTQuery;
+
