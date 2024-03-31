@@ -18,37 +18,46 @@ function evaluateCondition(row, clause) {
 }
 
 async function executeSELECTQuery(query) {
-    try {
-        const { fields, table, whereClauses } = parseQuery(query);
-        
-        // Check if the CSV file exists
-        try {
-            await fs.access(`${table}.csv`);
-        } catch (error) {
-            throw new Error(`Table not found: ${table}`);
-        }
+    // Now we will have joinTable, joinCondition in the parsed query
+    const { fields, table, whereClauses, joinTable, joinCondition } = parseQuery(query);
+    let data = await readCSV(`${table}.csv`);
 
-        const data = await readCSV(`${table}.csv`);
-
-        // Apply WHERE clause filtering
-        const filteredData = whereClauses.length > 0
-            ? data.filter(row => whereClauses.every(clause => evaluateCondition(row,clause)))
-            : data;
-
-        // Select the specified fields
-        return filteredData.map(row => {
-            const selectedRow = {};
-            fields.forEach(field => {
-                selectedRow[field] = row[field];
-            });
-            return selectedRow;
+    // Perform INNER JOIN if specified
+    if (joinTable && joinCondition) {
+        const joinData = await readCSV(`${joinTable}.csv`);
+        data = data.flatMap(mainRow => {
+            return joinData
+                .filter(joinRow => {
+                    const mainValue = mainRow[joinCondition.left.split('.')[1]];
+                    const joinValue = joinRow[joinCondition.right.split('.')[1]];
+                    return mainValue === joinValue;
+                })
+                .map(joinRow => {
+                    return fields.reduce((acc, field) => {
+                        const [tableName, fieldName] = field.split('.');
+                        acc[field] = tableName === table ? mainRow[fieldName] : joinRow[fieldName];
+                        return acc;
+                    }, {});
+                });
         });
-    } catch (error) {
-        // Handle any errors that occur during query execution
-        console.error('Error executing SELECT query:', error);
-        throw error; // Re-throw the error to propagate it to the caller
     }
+
+    // Apply WHERE clause filtering after JOIN (or on the original data if no join)
+    const filteredData = whereClauses.length > 0
+        ? data.filter(row => whereClauses.every(clause => evaluateCondition(row, clause)))
+        : data;
+
+    // Map the selected fields from the result
+    const selectedData = filteredData.map(row => {
+        const selectedRow = {};
+        fields.forEach(field => {
+            // Assuming 'field' is just the column name without table prefix
+            selectedRow[field] = row[field];
+        });
+        return selectedRow;
+    });
+
+    return selectedData;
 }
 
 module.exports = executeSELECTQuery;
-
